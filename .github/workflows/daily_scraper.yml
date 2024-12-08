@@ -34,6 +34,9 @@ jobs:
       run: |
         # Install webdriver-manager (this will handle the ChromeDriver installation)
         pip install webdriver-manager
+        
+    - name: Set environment variables
+      run: echo "EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}" >> $GITHUB_ENV
 
     - name: Run Python script
       run: python script.py
