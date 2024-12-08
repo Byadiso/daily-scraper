@@ -79,6 +79,7 @@ def send_email(subject, body, to_email, filename=None):
         logging.error(f"Error while sending email: {e}")
 
 def scrape_homepage(url, driver):
+    logging.info("Scraping homepage...")
     driver.get(url)
     time.sleep(5)
     last_height = driver.execute_script("return document.body.scrollHeight")
@@ -95,9 +96,11 @@ def scrape_homepage(url, driver):
             scroll_attempts = 0
         last_height = new_height
 
+    logging.info("Homepage scraped successfully.")
     return driver.page_source
 
 def extract_matches(soup):
+    logging.info("Extracting match data...")
     elements_matches = soup.find_all("div", class_="event-card")
     matches_list = []
 
@@ -119,9 +122,11 @@ def extract_matches(soup):
 
         matches_list.append(match)
 
+    logging.info(f"Extracted {len(matches_list)} matches.")
     return matches_list
 
 def save_to_excel(matches_list, filename):
+    logging.info("Saving data to Excel...")
     all_matches_data = []
     low_odds_data = []
 
@@ -149,41 +154,50 @@ def save_to_excel(matches_list, filename):
         df_all_matches.to_excel(writer, sheet_name="All Matches", index=False)
         df_low_odds_matches.to_excel(writer, sheet_name="Low Odds Matches", index=False)
 
+    logging.info(f"Data saved to {filename}.")
     return low_odds_data
 
 def main():
     logging.info("Starting the script.")
-    url = "https://superbet.pl/zaklady-bukmacherskie/pilka-nozna/dzisiaj"
-    page_source = scrape_homepage(url, driver)
-    soup = BeautifulSoup(page_source, 'html.parser')
-    matches_list = extract_matches(soup)
-
-    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    excel_filename = os.path.join(output_folder, f"matches_{timestamp}.xlsx")
-
-    low_odds_data = save_to_excel(matches_list, excel_filename)
-
-    if low_odds_data:
-        email_body = "Low Odds Matches:\n\n" + "\n".join(
-            f"{match['Home Team']} vs {match['Away Team']} | Time: {match['Time']} | Home Win Odds: {match['Home Win Odds']}"
-            for match in low_odds_data
-        )
-    else:
-        email_body = "No low odds matches found today."
-
-    send_email(
-        subject="Daily Low Odds Matches",
-        body=email_body,
-        to_email="nganatech@gmail.com",
-        filename=excel_filename
-    )
-
-    logging.info("Script finished execution.")
-
-if __name__ == "__main__":
+    start_time = time.time()  # Start time for execution duration tracking
+    
     try:
-        main()
+        url = "https://superbet.pl/zaklady-bukmacherskie/pilka-nozna/dzisiaj"
+        page_source = scrape_homepage(url, driver)
+        soup = BeautifulSoup(page_source, 'html.parser')
+        matches_list = extract_matches(soup)
+
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        excel_filename = os.path.join(output_folder, f"matches_{timestamp}.xlsx")
+
+        low_odds_data = save_to_excel(matches_list, excel_filename)
+
+        if low_odds_data:
+            email_body = "Low Odds Matches:\n\n" + "\n".join(
+                f"{match['Home Team']} vs {match['Away Team']} | Time: {match['Time']} | Home Win Odds: {match['Home Win Odds']}"
+                for match in low_odds_data
+            )
+        else:
+            email_body = "No low odds matches found today."
+
+        send_email(
+            subject="Daily Low Odds Matches",
+            body=email_body,
+            to_email="nganatech@gmail.com",
+            filename=excel_filename
+        )
+
+        logging.info("Script finished execution.")
+
     except Exception as e:
         logging.error(f"An error occurred: {e}")
+
     finally:
+        end_time = time.time()
+        execution_time = end_time - start_time
+        logging.info(f"Script executed in {execution_time:.2f} seconds.")
         driver.quit()
+        logging.info("The script ran successfully without errors.")  # Final success message
+
+if __name__ == "__main__":
+    main()
