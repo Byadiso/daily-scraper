@@ -23,16 +23,23 @@ jobs:
         python -m pip install --upgrade pip
         pip install --no-cache-dir --force-reinstall -r requirements.txt
 
-    - name: Verify Python dependencies
-      run: pip check
+    - name: Install Chrome and ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget curl unzip
+        # Install the latest Chrome stable version
+        sudo apt-get install -y google-chrome-stable
+        # Fetch the appropriate chromedriver version for installed Chrome version
+        LATEST=$(curl -sSL https://chromedriver.storage.googleapis.com/LATEST_RELEASE)
+        wget https://chromedriver.storage.googleapis.com/$LATEST/chromedriver_linux64.zip
+        unzip chromedriver_linux64.zip
+        sudo mv chromedriver /usr/local/bin/chromedriver
+        sudo chmod +x /usr/local/bin/chromedriver
 
     - name: Run the scraper script
       env:
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
       run: python script.py
-
-    - name: List installed Python packages
-      run: pip list
 
     - name: Upload output files
       if: always()
