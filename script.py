@@ -52,7 +52,9 @@ driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), opti
 
 def send_email(subject, body, to_email, filename=None):
     sender_email = "soothesphereshop@gmail.com"
-    sender_password = os.getenv("EMAIL_PASSWORD")  # Load from environment variable
+    sender_password = "bwcv mlzf hpyx aqgo"
+    
+   #  sender_password = os.getenv("EMAIL_PASSWORD")  Load from environment variable
 
     if not sender_password:
         logger.error("EMAIL_PASSWORD environment variable is not set.")
