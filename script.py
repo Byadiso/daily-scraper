@@ -12,6 +12,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
+from webdriver_manager.chrome import ChromeDriverManager  # Import WebDriver Manager
 
 # Setup logging
 output_folder = "output"
@@ -23,15 +24,14 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-# Setup Selenium WebDriver with ChromeDriver installed manually
+# Setup Selenium WebDriver with ChromeDriver managed by WebDriver Manager
 chrome_options = Options()
 chrome_options.add_argument("--headless")  # Run headless Chrome
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
 
-# Manually set ChromeDriver path
-driver_path = "/usr/local/bin/chromedriver"  # This is the default path for GitHub runners
-driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
+# Use WebDriver Manager to automatically download and set up ChromeDriver
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
 def send_email(subject, body, to_email, filename=None):
     sender_email = "soothesphereshop@gmail.com"
