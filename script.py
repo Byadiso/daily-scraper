@@ -51,13 +51,11 @@ chrome_options.add_argument("--disable-dev-shm-usage")
 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
 def send_email(subject, body, to_email, filename=None):
-    sender_email = "soothesphereshop@gmail.com"
-    sender_password = "bwcv mlzf hpyx aqgo"
-    
-   #  sender_password = os.getenv("EMAIL_PASSWORD")  Load from environment variable
+    sender_email = "soothesphereshop@gmail.com"   
+    sender_password = os.getenv("EMAIL_PASSWORD")  #Load from environment variable
 
     if not sender_password:
-        logger.error("EMAIL_PASSWORD environment variable is not set.")
+        logger.error("EMAIL_PASSWORD environment variable is not set.".sender_password)
         raise ValueError("EMAIL_PASSWORD environment variable is required.")
 
     message = MIMEMultipart()
