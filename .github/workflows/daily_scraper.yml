@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.10
+        python-version: '3.10' # Ensure quotes around the version for YAML parsing consistency
 
     - name: Install dependencies
       run: |
@@ -29,8 +29,8 @@ jobs:
       run: python script.py
 
     - name: Upload output files
-      if: always()
+      if: always() # Ensure this step runs even if the script fails
       uses: actions/upload-artifact@v3
       with:
         name: output-files
-        path: output/
+        path: output/ # Ensure this path matches the actual output directory of your script
