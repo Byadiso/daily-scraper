@@ -199,7 +199,7 @@ def main():
         filename=excel_filename
     )
 
-     send_email(
+    send_email(
         subject="Daily Low Odds Matches",
         body=email_body,
         to_email="riddlesbash@gmail.com",
