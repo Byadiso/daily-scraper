@@ -55,7 +55,8 @@ def send_email(subject, body, to_email, filename=None):
     sender_password = os.getenv("EMAIL_PASSWORD")  #Load from environment variable
 
     if not sender_password:
-        logger.error("EMAIL_PASSWORD environment variable is not set.".sender_password)
+        logger.error("EMAIL_PASSWORD environment variable is not set.")
+        print(sender_password)
         raise ValueError("EMAIL_PASSWORD environment variable is required.")
 
     message = MIMEMultipart()
