@@ -6,7 +6,6 @@ import smtplib
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import pandas as pd
 from email.mime.text import MIMEText
@@ -24,12 +23,15 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-# Setup Selenium WebDriver
+# Setup Selenium WebDriver with ChromeDriver installed manually
 chrome_options = Options()
 chrome_options.add_argument("--headless")  # Run headless Chrome
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+
+# Manually set ChromeDriver path
+driver_path = "/usr/local/bin/chromedriver"  # This is the default path for GitHub runners
+driver = webdriver.Chrome(service=Service(driver_path), options=chrome_options)
 
 def send_email(subject, body, to_email, filename=None):
     sender_email = "soothesphereshop@gmail.com"
