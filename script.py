@@ -202,7 +202,7 @@ def main():
     send_email(
         subject="Daily Low Odds Matches",
         body=email_body,
-        to_email="riddlesbash@gmail.com",
+        to_email="elymuneza@gmail.com",
         filename=excel_filename
     )
 
