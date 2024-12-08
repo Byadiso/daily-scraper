@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 5,7,11,14,18,21,23 * * *'  # Runs at 7 AM, 11 AM, 2 PM, 6 PM, 9 PM, and 11 PM
+    - cron: '0 7,9,12,15,18,21,23 * * *'  # Runs at 7 AM, 11 AM, 2 PM, 6 PM, 9 PM, and 11 PM
 
 jobs:
   build:
