@@ -199,6 +199,13 @@ def main():
         filename=excel_filename
     )
 
+     send_email(
+        subject="Daily Low Odds Matches",
+        body=email_body,
+        to_email="riddlesbash@gmail.com",
+        filename=excel_filename
+    )
+
     logger.info("Script finished execution.")
 
 if __name__ == "__main__":
