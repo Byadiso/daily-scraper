@@ -192,19 +192,20 @@ def main():
     else:
         email_body = "No low odds matches found today."
 
-    send_email(
+    #only send email if we have something to be on.
+    if(len(low_odds_data)) > 0:
+        send_email(
         subject="Daily Low Odds Matches",
         body=email_body,
         to_email="nganatech@gmail.com",
         filename=excel_filename
     )
-
-    send_email(
+        send_email(
         subject="Daily Low Odds Matches",
         body=email_body,
         to_email="elymuneza@gmail.com",
         filename=excel_filename
-    )
+    ) 
 
     logger.info("Script finished execution.")
 
