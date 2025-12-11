@@ -6,6 +6,7 @@ This project automates scraping match data from a website and emails low-odds ma
 - Scrapes match data using Selenium and BeautifulSoup.
 - Filters matches with low odds.
 - Emails the results with an attached Excel file.
+- check if not result, send excel with note that no results found.
 
 ## Usage
 
