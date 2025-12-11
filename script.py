@@ -1,217 +1,201 @@
-import os
-import time
-import logging
-import sys
+import time, logging, os, smtplib
 from datetime import datetime
-import smtplib
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import pandas as pd
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-from webdriver_manager.chrome import ChromeDriverManager  # Import WebDriver Manager
 
-# Setup logging
-output_folder = "output"
-os.makedirs(output_folder, exist_ok=True)
+# ───────── LOGGING ─────────
+logging.basicConfig(
+    filename="daily_script.log",
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
 
-# Create a logger
-logger = logging.getLogger()
-
-# Set logging level to INFO (or DEBUG for more verbosity)
-logger.setLevel(logging.INFO)
-
-# Create file handler to log to a file
-file_handler = logging.FileHandler(os.path.join(output_folder, "daily_script.log"))
-file_handler.setLevel(logging.INFO)
-file_formatter = logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-file_handler.setFormatter(file_formatter)
-
-# Create console handler to log to the console (GitHub Actions)
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.INFO)
-console_formatter = logging.Formatter("%(asctime)s [%(levelname)s]: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
-console_handler.setFormatter(console_formatter)
-
-# Add both handlers to the logger
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
-
-# Setup Selenium WebDriver with ChromeDriver managed by WebDriver Manager
 chrome_options = Options()
-chrome_options.add_argument("--headless")  # Run headless Chrome
+chrome_options.add_argument("--headless")
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--disable-dev-shm-usage")
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--window-size=1920,1080")
 
-# Use WebDriver Manager to automatically download and set up ChromeDriver
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+driver = webdriver.Chrome(
+    service=Service(ChromeDriverManager().install()),
+    options=chrome_options
+)
 
 def send_email(subject, body, to_email, filename=None):
-    sender_email = "soothesphereshop@gmail.com"   
-    sender_password = os.getenv("EMAIL_PASSWORD")  #Load from environment variable
+    sender_email = "soothesphereshop@gmail.com"
+    sender_password = os.getenv("EMAIL_PASSWORD")  # <- App Password
 
-    if not sender_password:
-        logger.error("EMAIL_PASSWORD environment variable is not set.")
-        print(sender_password)
-        raise ValueError("EMAIL_PASSWORD environment variable is required.")
+    msg = MIMEMultipart()
+    msg["From"], msg["To"], msg["Subject"] = sender_email, to_email, subject
+    msg.attach(MIMEText(body, "plain"))
 
-    message = MIMEMultipart()
-    message["From"] = sender_email
-    message["To"] = to_email
-    message["Subject"] = subject
-
-    # Attach the body text
-    message.attach(MIMEText(body, "plain"))
-
-    # Attach the file if provided and exists
     if filename and os.path.exists(filename):
         try:
-            with open(filename, "rb") as attachment:
+            with open(filename, "rb") as f:
                 part = MIMEBase("application", "octet-stream")
-                part.set_payload(attachment.read())
-                encoders.encode_base64(part)
-                part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(filename)}")
-                message.attach(part)
-            logger.info(f"Attached file: {filename}")
+                part.set_payload(f.read())
+            encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f"attachment; filename={os.path.basename(filename)}"
+            )
+            msg.attach(part)
         except Exception as e:
-            logger.error(f"Error while attaching file {filename}: {e}")
-            return
+            logging.error(f"Attachment error {filename}: {e}")
 
     try:
-        # Connect to the Gmail SMTP server
-        logger.info("Connecting to Gmail SMTP server...")
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            logger.info("Logging in to the email server...")
+        logging.info("Connecting to Gmail SMTP...")
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
             server.login(sender_email, sender_password)
-            logger.info("Login successful. Sending email...")
-            server.sendmail(sender_email, to_email, message.as_string())
-        logger.info("Email sent successfully.")
-    except smtplib.SMTPException as smtp_err:
-        logger.error(f"SMTP error: {smtp_err}")
+            server.sendmail(sender_email, to_email, msg.as_string())
+        logging.info(f"Email sent to {to_email}")
+        print("Email sent successfully.")
+    except smtplib.SMTPAuthenticationError as e:
+        logging.error(f"SMTP authentication error: {e}")
     except Exception as e:
-        logger.error(f"Error while sending email: {e}")
+        logging.error(f"Unexpected email error: {e}")
 
-def scrape_homepage(url, driver):
-    logger.info(f"Scraping the homepage: {url}")
+def scrape_homepage(url):
+    logging.info(f"Opening URL: {url}")
     driver.get(url)
-    time.sleep(5)
+    time.sleep(5)  # allow initial load
+
+    # scroll to bottom gradually to load dynamic content
     last_height = driver.execute_script("return document.body.scrollHeight")
-    scroll_attempts = 0
-
-    while scroll_attempts < 10:
+    attempts = 0
+    while attempts < 10:
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(7)
+        time.sleep(7)  # wait for content to load
         new_height = driver.execute_script("return document.body.scrollHeight")
-
         if new_height == last_height:
-            scroll_attempts += 1
+            attempts += 1
         else:
-            scroll_attempts = 0
+            attempts = 0
         last_height = new_height
 
+    logging.info("Finished scrolling.")
     return driver.page_source
 
 def extract_matches(soup):
-    logger.info("Extracting match data...")
-    elements_matches = soup.find_all("div", class_="event-card")
-    matches_list = []
+    cards = soup.find_all("div", class_="event-card")
+    logging.info(f"Found {len(cards)} event cards.")
+    matches = []
+    for c in cards:
+        # Extract team names
+        home = c.find("div", "e2e-event-team1-name")
+        away = c.find("div", "e2e-event-team2-name")
+        time_span = c.find("span", "event-card-label")
 
-    for match_element in elements_matches:
-        match = {}
-        home_team = match_element.find("div", class_="e2e-event-team1-name")
-        match['homeTeam'] = home_team.get_text(strip=True) if home_team else "N/A"
-        away_team = match_element.find("div", class_="e2e-event-team2-name")
-        match['awayTeam'] = away_team.get_text(strip=True) if away_team else "N/A"
-        match_time = match_element.find("span", class_="event-card-label")
-        match['time'] = match_time.get_text(strip=True) if match_time else "N/A"
-        match['odds'] = {'homeWin': "N/A", 'draw': "N/A", 'awayWin': "N/A"}
+        home_name = home.get_text(strip=True) if home else "N/A"
+        away_name = away.get_text(strip=True) if away else "N/A"
+        match_time = time_span.get_text(strip=True) if time_span else "N/A"
 
-        odds_container = match_element.select("div.odd-offer div:nth-child(1) button div span.odd-button__odd-value-new")
-        if len(odds_container) >= 3:
-            match['odds']['homeWin'] = odds_container[0].get_text(strip=True).replace(',', '')
-            match['odds']['draw'] = odds_container[1].get_text(strip=True).replace(',', '')
-            match['odds']['awayWin'] = odds_container[2].get_text(strip=True).replace(',', '')
-
-        matches_list.append(match)
-
-    return matches_list
-
-def save_to_excel(matches_list, filename):
-    logger.info(f"Saving match data to Excel: {filename}")
-    all_matches_data = []
-    low_odds_data = []
-
-    for match in matches_list:
-        match_data = {
-            'Home Team': match['homeTeam'],
-            'Away Team': match['awayTeam'],
-            'Time': match['time'],
-            'Home Win Odds': match['odds']['homeWin'],
-            'Draw Odds': match['odds']['draw'],
-            'Away Win Odds': match['odds']['awayWin']
+        m = {
+            "homeTeam": home_name,
+            "awayTeam": away_name,
+            "time": match_time,
+            "odds": {"homeWin": "N/A", "draw": "N/A", "awayWin": "N/A"}
         }
-        all_matches_data.append(match_data)
 
+        # Try extracting odds
+        # New selector: all odds spans under buttons
+        odds_spans = c.select("div.odd-offer button span.odd-button__odd-value-new")
+
+        # If that fails or returns fewer than 3, try fallback selectors
+        if len(odds_spans) < 3:
+            logging.info(f"Primary odds selector yielded {len(odds_spans)} items for {home_name} vs {away_name}, trying fallback.")
+            # Fallback option: maybe class changed or wrappers present
+            # Try selecting spans with similar name or pattern
+            fallback = c.select("span.odd-value, span.odd-button__odd-value-new, div.odd-offer span")
+            # Filter out empty or non-numerical
+            fallback_clean = []
+            for fs in fallback:
+                text = fs.get_text(strip=True)
+                # Simple check: contains digits and maybe comma or dot
+                if any(ch.isdigit() for ch in text):
+                    fallback_clean.append(fs)
+            if len(fallback_clean) >= 3:
+                odds_spans = fallback_clean
+
+        # If now enough, assign
+        if len(odds_spans) >= 3:
+            try:
+                m["odds"]["homeWin"] = odds_spans[0].get_text(strip=True).replace(",", "")
+                m["odds"]["draw"]    = odds_spans[1].get_text(strip=True).replace(",", "")
+                m["odds"]["awayWin"] = odds_spans[2].get_text(strip=True).replace(",", "")
+            except Exception as e:
+                logging.error(f"Error parsing odds for {home_name} vs {away_name}: {e}")
+        else:
+            logging.warning(f"Not enough odds found for {home_name} vs {away_name}. Odds found: {len(odds_spans)}")
+
+        matches.append(m)
+
+    return matches
+
+def save_to_excel(matches, filename="matches.xlsx"):
+    all_rows = []
+    low_rows = []
+    for m in matches:
+        row = {
+            "Home Team": m["homeTeam"],
+            "Away Team": m["awayTeam"],
+            "Time": m["time"],
+            "Home Win Odds": m["odds"]["homeWin"],
+            "Draw Odds": m["odds"]["draw"],
+            "Away Win Odds": m["odds"]["awayWin"]
+        }
+        all_rows.append(row)
+        # If numeric odds and homeWin is less than threshold
         try:
-            if float(match['odds']['homeWin']) < 1.50:
-                low_odds_data.append(match_data)
-        except ValueError:
+            # Convert with float; if comma used as decimal, adjust accordingly
+            hw = float(m["odds"]["homeWin"].replace(",", "."))
+            if hw < 1.50:  # you can adjust threshold
+                low_rows.append(row)
+        except Exception:
+            # skip non-numeric or missing
             pass
 
-    df_all_matches = pd.DataFrame(all_matches_data)
-    df_low_odds_matches = pd.DataFrame(low_odds_data)
+    with pd.ExcelWriter(filename, engine="openpyxl", mode="w") as writer:
+        pd.DataFrame(all_rows).to_excel(writer, sheet_name="All Matches", index=False)
+        pd.DataFrame(low_rows).to_excel(writer, sheet_name="Low Odds", index=False)
 
-    with pd.ExcelWriter(filename, engine='openpyxl', mode='w') as writer:
-        df_all_matches.to_excel(writer, sheet_name="All Matches", index=False)
-        df_low_odds_matches.to_excel(writer, sheet_name="Low Odds Matches", index=False)
-
-    return low_odds_data
+    logging.info(f"Excel saved: {filename}")
+    return low_rows
 
 def main():
-    logger.info("Starting the script.")
+    logging.info("===== Script started =====")
     url = "https://superbet.pl/zaklady-bukmacherskie/pilka-nozna/dzisiaj"
-    page_source = scrape_homepage(url, driver)
-    soup = BeautifulSoup(page_source, 'html.parser')
-    matches_list = extract_matches(soup)
+    html = scrape_homepage(url)
+    soup = BeautifulSoup(html, "html.parser")
+    matches = extract_matches(soup)
+    low = save_to_excel(matches, "matches_daily.xlsx")
 
-    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    excel_filename = os.path.join(output_folder, f"matches_{timestamp}.xlsx")
-
-    low_odds_data = save_to_excel(matches_list, excel_filename)
-
-    if low_odds_data:
-        email_body = "Low Odds Matches:\n\n" + "\n".join(
-            f"{match['Home Team']} vs {match['Away Team']} | Time: {match['Time']} | Home Win Odds: {match['Home Win Odds']}"
-            for match in low_odds_data
+    if low:
+        body = "Low Odds Matches:\n\n" + "\n".join(
+            f"{row['Home Team']} vs {row['Away Team']} | {row['Time']} | HomeWin: {row['Home Win Odds']}"
+            for row in low
         )
+        send_email("Daily Low Odds Matches", body, "nganatech@gmail.com", "matches_daily.xlsx")
     else:
-        email_body = "No low odds matches found today."
+        logging.info("No low odds matches found.")
 
-    send_email(
-        subject="Daily Low Odds Matches",
-        body=email_body,
-        to_email="nganatech@gmail.com",
-        filename=excel_filename
-    )
-
-    send_email(
-        subject="Daily Low Odds Matches",
-        body=email_body,
-        to_email="riddlesbash@gmail.com",
-        filename=excel_filename
-    )
-
-    logger.info("Script finished execution.")
+    logging.info("===== Script finished =====")
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        logger.error(f"An error occurred: {e}")
+        logging.error(f"Fatal error: {e}")
+        print("Fatal error:", e)
     finally:
         driver.quit()

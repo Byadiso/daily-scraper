@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 6 * * *'  # Adjust the schedule to your needs
+    - cron: '0 7,10,13,16,20,22 * * *'  # Runs at 8 AM, 11 AM, 2 PM, 5 PM, 9 PM, and 11 PM
 
 jobs:
   build:
