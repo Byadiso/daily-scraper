@@ -22,12 +22,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-# TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-# TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
-TELEGRAM_BOT_TOKEN = "8499543199:AAFqGSKJ7PqhoBHV56crAAIwSPtpHN6Fi1w"
-TELEGRAM_CHAT_ID = "2046825005"
-
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 
 # -------------------- EMAIL --------------------
