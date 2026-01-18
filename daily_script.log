@@ -47,3 +47,8 @@
 2026-01-18 13:45:34 [INFO] Excel saved: matches_daily.xlsx
 2026-01-18 13:45:36 [ERROR] Email error: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 2adb3069b0e04-59baf3977b5sm2461087e87.57 - gsmtp')
 2026-01-18 13:45:36 [INFO] Telegram alert sent
+2026-01-18 14:15:06 [INFO] Opening Superbet page
+2026-01-18 14:15:21 [INFO] Found 27 matches
+2026-01-18 14:15:25 [INFO] Excel saved: matches_daily.xlsx
+2026-01-18 14:15:26 [ERROR] Email error: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials a640c23a62f3a-b8795a31fafsm780538566b.66 - gsmtp')
+2026-01-18 14:15:26 [INFO] Telegram alert sent
