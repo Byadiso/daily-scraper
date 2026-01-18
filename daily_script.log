@@ -1,0 +1,44 @@
+2026-01-18 12:18:51 [INFO] ====== WebDriver manager ======
+2026-01-18 12:18:53 [INFO] There is no [win32] chromedriver "latest" for browser google-chrome "144.0.7559" in cache
+2026-01-18 12:18:53 [INFO] Get LATEST chromedriver version for google-chrome
+2026-01-18 12:20:53 [INFO] ====== WebDriver manager ======
+2026-01-18 12:20:54 [INFO] There is no [win32] chromedriver "latest" for browser google-chrome "144.0.7559" in cache
+2026-01-18 12:20:54 [INFO] Get LATEST chromedriver version for google-chrome
+2026-01-18 12:23:26 [INFO] ====== WebDriver manager ======
+2026-01-18 12:23:27 [INFO] There is no [win32] chromedriver "latest" for browser google-chrome "144.0.7559" in cache
+2026-01-18 12:23:27 [INFO] Get LATEST chromedriver version for google-chrome
+2026-01-18 12:29:00 [INFO] Opening URL: https://superbet.pl/zaklady-bukmacherskie/pilka-nozna/dzisiaj
+2026-01-18 12:30:38 [WARNING] Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host', None, 10054, None)': /session/9f243d8f09ae4b7d28b7f888b6b10603
+2026-01-18 12:30:42 [WARNING] Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='localhost', port=61871): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /session/9f243d8f09ae4b7d28b7f888b6b10603
+2026-01-18 12:30:47 [WARNING] Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPConnection(host='localhost', port=61871): Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it")': /session/9f243d8f09ae4b7d28b7f888b6b10603
+2026-01-18 12:34:24 [INFO] Opening URL: https://superbet.pl/zaklady-bukmacherskie/pilka-nozna/dzisiaj
+2026-01-18 12:35:04 [INFO] Opening URL: https://superbet.pl/zaklady-bukmacherskie/pilka-nozna/dzisiaj
+2026-01-18 12:36:18 [INFO] Finished scrolling.
+2026-01-18 12:36:18 [INFO] Found 16 event cards.
+2026-01-18 12:36:19 [INFO] Excel saved: matches_daily.xlsx
+2026-01-18 12:41:29 [INFO] Opening URL: https://superbet.pl/zaklady-bukmacherskie/pilka-nozna/dzisiaj
+2026-01-18 12:44:11 [INFO] Finished scrolling.
+2026-01-18 12:44:12 [INFO] Found 16 event cards.
+2026-01-18 12:48:28 [INFO] Opening URL: https://superbet.pl/zaklady-bukmacherskie/pilka-nozna/dzisiaj
+2026-01-18 12:49:48 [INFO] Finished scrolling.
+2026-01-18 12:49:48 [INFO] Found 16 event cards.
+2026-01-18 12:49:49 [INFO] Excel saved: matches_daily.xlsx
+2026-01-18 12:56:58 [INFO] Opening Superbet page
+2026-01-18 12:57:17 [INFO] Found 28 event cards
+2026-01-18 12:57:23 [INFO] Excel saved: matches_daily.xlsx
+2026-01-18 13:02:58 [INFO] Opening Superbet page
+2026-01-18 13:03:09 [INFO] Found 28 event cards
+2026-01-18 13:03:13 [INFO] Excel saved: matches_daily.xlsx
+2026-01-18 13:03:14 [ERROR] Email error: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials a640c23a62f3a-b87959ca4d6sm798658466b.39 - gsmtp')
+2026-01-18 13:28:50 [INFO] Opening Superbet page
+2026-01-18 13:29:05 [INFO] Found 28 event cards
+2026-01-18 13:30:06 [INFO] Opening Superbet page
+2026-01-18 13:30:17 [INFO] Found 28 event cards
+2026-01-18 13:30:21 [INFO] Excel saved: matches_daily.xlsx
+2026-01-18 13:30:22 [ERROR] Email error: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 4fb4d7f45d1cf-65452cdcecasm7408666a12.14 - gsmtp')
+2026-01-18 13:30:23 [INFO] Telegram alert sent
+2026-01-18 13:31:24 [INFO] Opening Superbet page
+2026-01-18 13:31:35 [INFO] Found 28 event cards
+2026-01-18 13:31:39 [INFO] Excel saved: matches_daily.xlsx
+2026-01-18 13:31:40 [ERROR] Email error: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 4fb4d7f45d1cf-654534c8b7fsm7579812a12.27 - gsmtp')
+2026-01-18 13:31:40 [INFO] Telegram alert sent

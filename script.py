@@ -1,17 +1,20 @@
-import time, logging, os, smtplib
+import requests
+import time
+import logging
+import os
+import smtplib
 from datetime import datetime
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
-from bs4 import BeautifulSoup
+
+from playwright.sync_api import sync_playwright
 import pandas as pd
+
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 
-# ───────── LOGGING ─────────
+
+# -------------------- LOGGING --------------------
 logging.basicConfig(
     filename="daily_script.log",
     level=logging.INFO,
@@ -19,132 +22,127 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
-chrome_options = Options()
-chrome_options.add_argument("--headless")
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument("--disable-dev-shm-usage")
-chrome_options.add_argument("--disable-gpu")
-chrome_options.add_argument("--window-size=1920,1080")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
-driver = webdriver.Chrome(
-    service=Service(ChromeDriverManager().install()),
-    options=chrome_options
-)
 
+
+
+# -------------------- EMAIL --------------------
 def send_email(subject, body, to_email, filename=None):
     sender_email = "soothesphereshop@gmail.com"
-    sender_password = os.getenv("EMAIL_PASSWORD")  # <- App Password
+    sender_password = os.getenv("EMAIL_PASSWORD")
 
     msg = MIMEMultipart()
-    msg["From"], msg["To"], msg["Subject"] = sender_email, to_email, subject
+    msg["From"] = sender_email
+    msg["To"] = to_email
+    msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain"))
 
     if filename and os.path.exists(filename):
-        try:
-            with open(filename, "rb") as f:
-                part = MIMEBase("application", "octet-stream")
-                part.set_payload(f.read())
-            encoders.encode_base64(part)
-            part.add_header(
-                "Content-Disposition",
-                f"attachment; filename={os.path.basename(filename)}"
-            )
-            msg.attach(part)
-        except Exception as e:
-            logging.error(f"Attachment error {filename}: {e}")
+        with open(filename, "rb") as f:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(f.read())
+        encoders.encode_base64(part)
+        part.add_header(
+            "Content-Disposition",
+            f"attachment; filename={os.path.basename(filename)}"
+        )
+        msg.attach(part)
 
     try:
-        logging.info("Connecting to Gmail SMTP...")
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, to_email, msg.as_string())
         logging.info(f"Email sent to {to_email}")
-        print("Email sent successfully.")
-    except smtplib.SMTPAuthenticationError as e:
-        logging.error(f"SMTP authentication error: {e}")
     except Exception as e:
-        logging.error(f"Unexpected email error: {e}")
+        logging.error(f"Email error: {e}")
 
-def scrape_homepage(url):
-    logging.info(f"Opening URL: {url}")
-    driver.get(url)
-    time.sleep(5)  # allow initial load
 
-    # scroll to bottom gradually to load dynamic content
-    last_height = driver.execute_script("return document.body.scrollHeight")
-    attempts = 0
-    while attempts < 10:
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(7)  # wait for content to load
-        new_height = driver.execute_script("return document.body.scrollHeight")
-        if new_height == last_height:
-            attempts += 1
-        else:
-            attempts = 0
-        last_height = new_height
-
-    logging.info("Finished scrolling.")
-    return driver.page_source
-
-def extract_matches(soup):
-    cards = soup.find_all("div", class_="event-card")
-    logging.info(f"Found {len(cards)} event cards.")
+# -------------------- SCRAPING --------------------
+def scrape_matches():
+    url = "https://superbet.pl/zaklady-bukmacherskie/pilka-nozna/dzisiaj"
     matches = []
-    for c in cards:
-        # Extract team names
-        home = c.find("div", "e2e-event-team1-name")
-        away = c.find("div", "e2e-event-team2-name")
-        time_span = c.find("span", "event-card-label")
 
-        home_name = home.get_text(strip=True) if home else "N/A"
-        away_name = away.get_text(strip=True) if away else "N/A"
-        match_time = time_span.get_text(strip=True) if time_span else "N/A"
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage"
+            ]
+        )
 
-        m = {
-            "homeTeam": home_name,
-            "awayTeam": away_name,
-            "time": match_time,
-            "odds": {"homeWin": "N/A", "draw": "N/A", "awayWin": "N/A"}
-        }
+        context = browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            )
+        )
 
-        # Try extracting odds
-        # New selector: all odds spans under buttons
-        odds_spans = c.select("div.odd-offer button span.odd-button__odd-value-new")
+        page = context.new_page()
+        logging.info("Opening Superbet page")
+        page.goto(url, timeout=60000)
 
-        # If that fails or returns fewer than 3, try fallback selectors
-        if len(odds_spans) < 3:
-            logging.info(f"Primary odds selector yielded {len(odds_spans)} items for {home_name} vs {away_name}, trying fallback.")
-            # Fallback option: maybe class changed or wrappers present
-            # Try selecting spans with similar name or pattern
-            fallback = c.select("span.odd-value, span.odd-button__odd-value-new, div.odd-offer span")
-            # Filter out empty or non-numerical
-            fallback_clean = []
-            for fs in fallback:
-                text = fs.get_text(strip=True)
-                # Simple check: contains digits and maybe comma or dot
-                if any(ch.isdigit() for ch in text):
-                    fallback_clean.append(fs)
-            if len(fallback_clean) >= 3:
-                odds_spans = fallback_clean
+        # Wait for events
+        page.wait_for_selector("div.event-card", timeout=30000)
 
-        # If now enough, assign
-        if len(odds_spans) >= 3:
+        # Scroll to load all events
+        last_height = 0
+        for _ in range(10):
+            page.mouse.wheel(0, 3000)
+            time.sleep(2)
+            height = page.evaluate("document.body.scrollHeight")
+            if height == last_height:
+                break
+            last_height = height
+
+        cards = page.query_selector_all("div.event-card")
+        logging.info(f"Found {len(cards)} event cards")
+
+        for c in cards:
             try:
-                m["odds"]["homeWin"] = odds_spans[0].get_text(strip=True).replace(",", "")
-                m["odds"]["draw"]    = odds_spans[1].get_text(strip=True).replace(",", "")
-                m["odds"]["awayWin"] = odds_spans[2].get_text(strip=True).replace(",", "")
-            except Exception as e:
-                logging.error(f"Error parsing odds for {home_name} vs {away_name}: {e}")
-        else:
-            logging.warning(f"Not enough odds found for {home_name} vs {away_name}. Odds found: {len(odds_spans)}")
+                home = c.query_selector("div.e2e-event-team1-name").inner_text().strip()
+                away = c.query_selector("div.e2e-event-team2-name").inner_text().strip()
+            except Exception:
+                continue
 
-        matches.append(m)
+            try:
+                match_time = c.query_selector("span.event-card-label").inner_text().strip()
+            except Exception:
+                match_time = "N/A"
+
+            odds = {"homeWin": "N/A", "draw": "N/A", "awayWin": "N/A"}
+
+            odd_elements = c.query_selector_all(
+                "span.odd-button__odd-value span"
+            )
+
+            if len(odd_elements) >= 3:
+                odds["homeWin"] = odd_elements[0].inner_text().strip()
+                odds["draw"] = odd_elements[1].inner_text().strip()
+                odds["awayWin"] = odd_elements[2].inner_text().strip()
+
+            matches.append({
+                "homeTeam": home,
+                "awayTeam": away,
+                "time": match_time,
+                "odds": odds
+            })
+
+        browser.close()
 
     return matches
 
-def save_to_excel(matches, filename="matches.xlsx"):
+
+# -------------------- EXCEL --------------------
+def save_to_excel(matches, filename="matches_daily.xlsx"):
     all_rows = []
     low_rows = []
+
     for m in matches:
         row = {
             "Home Team": m["homeTeam"],
@@ -152,50 +150,84 @@ def save_to_excel(matches, filename="matches.xlsx"):
             "Time": m["time"],
             "Home Win Odds": m["odds"]["homeWin"],
             "Draw Odds": m["odds"]["draw"],
-            "Away Win Odds": m["odds"]["awayWin"]
+            "Away Win Odds": m["odds"]["awayWin"],
         }
+
         all_rows.append(row)
-        # If numeric odds and homeWin is less than threshold
+
         try:
-            # Convert with float; if comma used as decimal, adjust accordingly
             hw = float(m["odds"]["homeWin"].replace(",", "."))
-            if hw < 1.50:  # you can adjust threshold
+            if hw < 1.50:
                 low_rows.append(row)
         except Exception:
-            # skip non-numeric or missing
             pass
 
-    with pd.ExcelWriter(filename, engine="openpyxl", mode="w") as writer:
+    with pd.ExcelWriter(filename, engine="openpyxl") as writer:
         pd.DataFrame(all_rows).to_excel(writer, sheet_name="All Matches", index=False)
         pd.DataFrame(low_rows).to_excel(writer, sheet_name="Low Odds", index=False)
 
     logging.info(f"Excel saved: {filename}")
     return low_rows
 
+
+# -------------------- MAIN --------------------
 def main():
-    logging.info("===== Script started =====")
-    url = "https://superbet.pl/zaklady-bukmacherskie/pilka-nozna/dzisiaj"
-    html = scrape_homepage(url)
-    soup = BeautifulSoup(html, "html.parser")
-    matches = extract_matches(soup)
-    low = save_to_excel(matches, "matches_daily.xlsx")
+    matches = scrape_matches()
+    low = save_to_excel(matches)
+
+    print(matches)
 
     if low:
-        body = "Low Odds Matches:\n\n" + "\n".join(
-            f"{row['Home Team']} vs {row['Away Team']} | {row['Time']} | HomeWin: {row['Home Win Odds']}"
-            for row in low
+    # EMAIL
+        email_body = "Low Odds Matches:\n\n" + "\n".join(
+            f"{r['Home Team']} vs {r['Away Team']} | {r['Time']} | {r['Home Win Odds']}"
+            for r in low
         )
-        send_email("Daily Low Odds Matches", body, "nganatech@gmail.com", "matches_daily.xlsx")
-    else:
-        logging.info("No low odds matches found.")
+    send_email(
+        "Daily Low Odds Matches",
+        email_body,
+        "nganatech@gmail.com",
+        "matches_daily.xlsx"
+    )
 
-    logging.info("===== Script finished =====")
+    # TELEGRAM
+    telegram_message = format_telegram_message(low)
+    send_telegram(telegram_message)
 
-if __name__ == "__main__":
+
+def send_telegram(message):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        logging.warning("Telegram not configured")
+        return
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
+    payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": message,
+            "parse_mode": "HTML"
+            }
+
     try:
-        main()
+        r = requests.post(url, json=payload, timeout=15)
+        r.raise_for_status()
+        logging.info("Telegram alert sent")
     except Exception as e:
-        logging.error(f"Fatal error: {e}")
-        print("Fatal error:", e)
-    finally:
-        driver.quit()
+                logging.error(f"Telegram error: {e}")        
+
+def format_telegram_message(rows):
+    lines = ["<b>⚽ Low Odds Matches</b>\n"]
+
+    for r in rows:
+        lines.append(
+            f"🏟 <b>{r['Home Team']} vs {r['Away Team']}</b>\n"
+            f"⏰ {r['Time']}\n"
+            f"🏠 Home Win: <b>{r['Home Win Odds']}</b>\n"
+        )
+
+    return "\n".join(lines)
+
+
+# -------------------- RUN --------------------
+if __name__ == "__main__":
+    main()
