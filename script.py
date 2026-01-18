@@ -27,7 +27,6 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 
 
-
 # -------------------- EMAIL --------------------
 def send_email(subject, body, to_email, filename=None):
     sender_email = "soothesphereshop@gmail.com"
@@ -54,7 +53,7 @@ def send_email(subject, body, to_email, filename=None):
         with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as server:
             server.login(sender_email, sender_password)
             server.sendmail(sender_email, to_email, msg.as_string())
-        logging.info(f"Email sent to {to_email}")
+        logging.info("Email sent successfully")
     except Exception as e:
         logging.error(f"Email error: {e}")
 
@@ -87,10 +86,8 @@ def scrape_matches():
         logging.info("Opening Superbet page")
         page.goto(url, timeout=60000)
 
-        # Wait for events
         page.wait_for_selector("div.event-card", timeout=30000)
 
-        # Scroll to load all events
         last_height = 0
         for _ in range(10):
             page.mouse.wheel(0, 3000)
@@ -101,7 +98,7 @@ def scrape_matches():
             last_height = height
 
         cards = page.query_selector_all("div.event-card")
-        logging.info(f"Found {len(cards)} event cards")
+        logging.info(f"Found {len(cards)} matches")
 
         for c in cards:
             try:
@@ -117,9 +114,7 @@ def scrape_matches():
 
             odds = {"homeWin": "N/A", "draw": "N/A", "awayWin": "N/A"}
 
-            odd_elements = c.query_selector_all(
-                "span.odd-button__odd-value span"
-            )
+            odd_elements = c.query_selector_all("span.odd-button__odd-value span")
 
             if len(odd_elements) >= 3:
                 odds["homeWin"] = odd_elements[0].inner_text().strip()
@@ -156,9 +151,17 @@ def save_to_excel(matches, filename="matches_daily.xlsx"):
         all_rows.append(row)
 
         try:
-            hw = float(m["odds"]["homeWin"].replace(",", "."))
-            if hw < 1.50:
+            home_odds = float(m["odds"]["homeWin"].replace(",", "."))
+            away_odds = float(m["odds"]["awayWin"].replace(",", "."))
+
+            if home_odds < 1.50:
+                row["Low Odds Type"] = "Home Win"
                 low_rows.append(row)
+
+            elif away_odds < 1.50:
+                row["Low Odds Type"] = "Away Win"
+                low_rows.append(row)
+
         except Exception:
             pass
 
@@ -170,31 +173,7 @@ def save_to_excel(matches, filename="matches_daily.xlsx"):
     return low_rows
 
 
-# -------------------- MAIN --------------------
-def main():
-    matches = scrape_matches()
-    low = save_to_excel(matches)
-
-    print(matches)
-
-    if low:
-    # EMAIL
-        email_body = "Low Odds Matches:\n\n" + "\n".join(
-            f"{r['Home Team']} vs {r['Away Team']} | {r['Time']} | {r['Home Win Odds']}"
-            for r in low
-        )
-    send_email(
-        "Daily Low Odds Matches",
-        email_body,
-        "nganatech@gmail.com",
-        "matches_daily.xlsx"
-    )
-
-    # TELEGRAM
-    telegram_message = format_telegram_message(low)
-    send_telegram(telegram_message)
-
-
+# -------------------- TELEGRAM --------------------
 def send_telegram(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         logging.warning("Telegram not configured")
@@ -203,17 +182,18 @@ def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
     payload = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": message,
-            "parse_mode": "HTML"
-            }
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML"
+    }
 
     try:
         r = requests.post(url, json=payload, timeout=15)
         r.raise_for_status()
         logging.info("Telegram alert sent")
     except Exception as e:
-                logging.error(f"Telegram error: {e}")        
+        logging.error(f"Telegram error: {e}")
+
 
 def format_telegram_message(rows):
     lines = ["<b>⚽ Low Odds Matches</b>\n"]
@@ -222,10 +202,34 @@ def format_telegram_message(rows):
         lines.append(
             f"🏟 <b>{r['Home Team']} vs {r['Away Team']}</b>\n"
             f"⏰ {r['Time']}\n"
-            f"🏠 Home Win: <b>{r['Home Win Odds']}</b>\n"
+            f"🔥 {r['Low Odds Type']} below 1.50\n"
+            f"🏠 Home: {r['Home Win Odds']} | ✈ Away: {r['Away Win Odds']}\n"
         )
 
     return "\n".join(lines)
+
+
+# -------------------- MAIN --------------------
+def main():
+    matches = scrape_matches()
+    low = save_to_excel(matches)
+
+    if low:
+        email_body = "Low Odds Matches:\n\n" + "\n".join(
+            f"{r['Home Team']} vs {r['Away Team']} | "
+            f"{r['Time']} | {r['Low Odds Type']}"
+            for r in low
+        )
+
+        send_email(
+            "Daily Low Odds Matches",
+            email_body,
+            "nganatech@gmail.com",
+            "matches_daily.xlsx"
+        )
+
+        telegram_message = format_telegram_message(low)
+        send_telegram(telegram_message)
 
 
 # -------------------- RUN --------------------
